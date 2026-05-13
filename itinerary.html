@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taiwan Trip Timeline</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
+  <style>
+    :root {
+      --bg: #f8efe5;
+      --paper: rgba(255, 251, 246, 0.9);
+      --ink: #1e2a39;
+      --muted: #5e6a77;
+      --line: rgba(30, 42, 57, 0.15);
+      --accent: #dd6b4d;
+      --accent-2: #0f8b8d;
+      --accent-3: #f2c14e;
+      --shadow: 0 18px 40px rgba(30, 42, 57, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(221, 107, 77, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(15, 139, 141, 0.14), transparent 28%),
+        linear-gradient(180deg, #fcf6ef 0%, #f4eadc 100%);
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: auto;
+      width: 40vmax;
+      height: 40vmax;
+      border-radius: 50%;
+      filter: blur(24px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    body::before {
+      top: -10vmax;
+      left: -10vmax;
+      background: rgba(242, 193, 78, 0.28);
+    }
+
+    body::after {
+      right: -10vmax;
+      bottom: -10vmax;
+      background: rgba(15, 139, 141, 0.18);
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1120px, calc(100% - 32px));
+      margin: 24px auto;
+      padding: 28px;
+      border-radius: 28px;
+      background: rgba(255, 251, 246, 0.72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(30, 42, 57, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 42, 57, 0.035) 1px, transparent 1px);
+      background-size: 22px 22px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 95%);
+      pointer-events: none;
+    }
+
+    .hero {
+      position: relative;
+      display: grid;
+      gap: 18px;
+      padding: 18px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(250, 239, 226, 0.78));
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -90px auto;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(221, 107, 77, 0.22), transparent 65%);
+    }
+
+    .eyebrow {
+      margin: 0;
+      font-size: 0.82rem;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--accent-2);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 10ch;
+      font-size: clamp(2.8rem, 7vw, 5.6rem);
+      line-height: 0.92;
+      font-weight: 600;
+    }
+
+    .lede {
+      margin: 0;
+      max-width: 44rem;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 1rem;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 42, 57, 0.1);
+      background: rgba(255, 255, 255, 0.72);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+    }
+
+    .journey {
+      position: relative;
+      margin-top: 28px;
+      padding: 34px 18px 18px;
+    }
+
+    .route {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, rgba(15, 139, 141, 0.22), rgba(221, 107, 77, 0.22));
+      border-radius: 999px;
+    }
+
+    .route::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      transform: translate(-50%, 0);
+      box-shadow: 0 0 0 8px rgba(221, 107, 77, 0.12);
+      animation: travel 16s ease-in-out infinite;
+    }
+
+    .stops {
+      display: grid;
+      gap: 18px;
+      position: relative;
+    }
+
+    .stop {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 76px 1fr;
+      align-items: center;
+      gap: 18px;
+      opacity: 0;
+      transform: translateY(18px);
+      animation: reveal 0.8s ease forwards;
+    }
+
+    .stop:nth-child(1) { animation-delay: 0.15s; }
+    .stop:nth-child(2) { animation-delay: 0.35s; }
+    .stop:nth-child(3) { animation-delay: 0.55s; }
+    .stop:nth-child(4) { animation-delay: 0.75s; }
+    .stop:nth-child(5) { animation-delay: 0.95s; }
+    .stop:nth-child(6) { animation-delay: 1.15s; }
+
+    .card {
+      position: relative;
+      padding: 18px 18px 20px;
+      border-radius: 22px;
+      background: var(--paper);
+      box-shadow: 0 10px 30px rgba(30, 42, 57, 0.08);
+      border: 1px solid rgba(30, 42, 57, 0.08);
+    }
+
+    .card h2,
+    .card h3,
+    .card p {
+      margin: 0;
+    }
+
+    .card h2,
+    .card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
+
+    .label {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(30, 42, 57, 0.06);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .details {
+      margin-top: 8px;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .marker {
+      position: relative;
+      z-index: 1;
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      margin: 0 auto;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 239, 226, 0.92));
+      border: 1px solid rgba(30, 42, 57, 0.08);
+      box-shadow: 0 10px 22px rgba(30, 42, 57, 0.1);
+      font-size: 1.5rem;
+    }
+
+    .spacer {
+      min-height: 1px;
+    }
+
+    .flight .card {
+      border-left: 5px solid var(--accent);
+    }
+
+    .hotel .card {
+      border-left: 5px solid var(--accent-2);
+    }
+
+    .return .card {
+      border-left: 5px solid var(--accent-3);
+    }
+
+    .map-panel {
+      margin-top: 30px;
+      padding: 22px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(247, 240, 231, 0.86));
+      border: 1px solid rgba(30, 42, 57, 0.08);
+      box-shadow: 0 10px 26px rgba(30, 42, 57, 0.08);
+    }
+
+    .map-panel h2 {
+      margin: 0 0 18px;
+      font-size: 1.25rem;
+    }
+
+    .map-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(30, 42, 57, 0.08);
+      box-shadow: 0 10px 22px rgba(30, 42, 57, 0.08);
+    }
+
+    .map-status {
+      margin: 0;
+      flex: 1;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .map-next {
+      border: 0;
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fffaf5;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(221, 107, 77, 0.22);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      min-width: 112px;
+    }
+
+    .map-next:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(221, 107, 77, 0.26);
+    }
+
+    .map-next:disabled {
+      opacity: 0.55;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .mini-map {
+      position: relative;
+      min-height: 420px;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(30, 42, 57, 0.08);
+    }
+
+    #leaflet-map {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .leaflet-container {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      background: #cfe1e8;
+    }
+
+    .plane-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 450;
+      pointer-events: none;
+    }
+
+    .flight-line {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .city {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .city .dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 0 10px rgba(221, 107, 77, 0.16);
+      animation: pointPulse 2.4s ease-in-out infinite;
+    }
+
+    .city.airport .dot {
+      background: var(--accent-3);
+      box-shadow: 0 0 0 10px rgba(242, 193, 78, 0.18);
+    }
+
+    .city.hotel .dot {
+      background: var(--accent-2);
+      box-shadow: 0 0 0 10px rgba(15, 139, 141, 0.16);
+    }
+
+    .plane {
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-size: 1.7rem;
+      filter: drop-shadow(0 8px 10px rgba(30, 42, 57, 0.18));
+      z-index: 3;
+      transform: translate(-50%, -50%);
+      will-change: transform, opacity;
+    }
+
+    .plane.outbound {
+      color: var(--accent);
+    }
+
+    .car {
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-size: 1.5rem;
+      color: var(--accent-2);
+      z-index: 3;
+      transform: translate(-50%, -50%);
+      will-change: transform, opacity;
+      filter: drop-shadow(0 8px 10px rgba(30, 42, 57, 0.18));
+    }
+
+    .train {
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-size: 1.5rem;
+      color: #2d6cdf;
+      z-index: 3;
+      transform: translate(-50%, -50%);
+      will-change: transform, opacity;
+      filter: drop-shadow(0 8px 10px rgba(30, 42, 57, 0.18));
+    }
+
+    .train.secondary {
+      color: #7c56d6;
+    }
+
+    .train.tertiary {
+      color: #0f8b8d;
+    }
+
+    .plane-shadow {
+      filter: drop-shadow(0 8px 10px rgba(30, 42, 57, 0.18));
+    }
+
+    .country-label {
+      position: absolute;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(30, 42, 57, 0.08);
+      box-shadow: 0 8px 18px rgba(30, 42, 57, 0.08);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      color: var(--ink);
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .country-label.hotel-label {
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--accent-2);
+    }
+
+    .country-label.airport-label {
+      background: rgba(255, 251, 241, 0.94);
+      color: #8a6213;
+    }
+
+    .map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(30, 42, 57, 0.08);
+    }
+
+    .legend-swatch {
+      width: 20px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(221, 107, 77, 0.8);
+    }
+
+    .legend-swatch.car {
+      background: rgba(15, 139, 141, 0.85);
+    }
+
+    .legend-swatch.train {
+      background: rgba(45, 108, 223, 0.85);
+    }
+
+    .legend-swatch.train-secondary {
+      background: rgba(124, 86, 214, 0.85);
+    }
+
+    .legend-swatch.train-tertiary {
+      background: rgba(15, 139, 141, 0.9);
+    }
+
+    .footer-note {
+      margin: 18px 4px 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    @keyframes reveal {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes travel {
+      0% { top: 0%; }
+      12% { top: 7%; }
+      30% { top: 28%; }
+      46% { top: 48%; }
+      63% { top: 67%; }
+      80% { top: 85%; }
+      100% { top: 100%; }
+    }
+
+    @keyframes pulseLine {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -36; }
+    }
+
+    @keyframes pointPulse {
+      0%, 100% { box-shadow: 0 0 0 10px rgba(221, 107, 77, 0.16); }
+      50% { box-shadow: 0 0 0 16px rgba(221, 107, 77, 0.08); }
+    }
+
+    @media (max-width: 860px) {
+      .page {
+        width: min(100% - 18px, 900px);
+        padding: 16px;
+      }
+
+      .journey {
+        padding-inline: 0;
+      }
+
+      .route {
+        left: 34px;
+      }
+
+      .mini-map {
+        min-height: 320px;
+      }
+
+      .map-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .map-next {
+        width: 100%;
+      }
+
+      .stop {
+        grid-template-columns: 68px 1fr;
+      }
+
+      .marker {
+        grid-column: 1;
+        grid-row: 1;
+        width: 68px;
+        height: 68px;
+      }
+
+      .card,
+      .spacer {
+        grid-column: 2;
+      }
+
+      .spacer {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .route::after,
+      .stop,
+      .city .dot {
+        animation: none;
+      }
+
+      .stop {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Travel Story</p>
+      <h1>Taiwan Journey</h1>
+      <p class="lede">
+        An elegant travel story showing the full trip: the outbound flight from London to Taipei, the
+        hotel stays across Taipei, Taichung, and Tainan, and the journey home to Heathrow.
+      </p>
+      <div class="meta">
+        <span class="pill">May 20 to May 30</span>
+        <span class="pill">London Heathrow &harr; Taipei</span>
+        <span class="pill">4 hotels &bull; 3 cities</span>
+      </div>
+    </section>
+
+    <section class="journey" aria-label="Trip overview">
+      <div class="route" aria-hidden="true"></div>
+      <div class="stops">
+        <article class="stop flight">
+          <section class="card">
+            <span class="label">Outbound Flight</span>
+            <h2>Heathrow to Taipei</h2>
+            <p class="details">
+              Departure <strong>May 20, 21:10</strong><br>
+              Arrival <strong>May 21, 17:50</strong>
+            </p>
+          </section>
+          <div class="marker" aria-hidden="true">&#9992;</div>
+          <div class="spacer"></div>
+        </article>
+
+        <article class="stop hotel">
+          <div class="spacer"></div>
+          <div class="marker" aria-hidden="true">&#8962;</div>
+          <section class="card">
+            <span class="label">Taipei Stay</span>
+            <h3>Green World Hotel - Zhonghua</h3>
+            <p class="details">
+              <strong>May 21 to May 24</strong><br>
+              First stop in Taipei after the flight.
+            </p>
+          </section>
+        </article>
+
+        <article class="stop hotel">
+          <section class="card">
+            <span class="label">Taichung Stay</span>
+            <h3>Modern Inn</h3>
+            <p class="details">
+              <strong>May 24 to May 27</strong><br>
+              Continuing south to Taichung.
+            </p>
+          </section>
+          <div class="marker" aria-hidden="true">&#8962;</div>
+          <div class="spacer"></div>
+        </article>
+
+        <article class="stop hotel">
+          <div class="spacer"></div>
+          <div class="marker" aria-hidden="true">&#8962;</div>
+          <section class="card">
+            <span class="label">Tainan Stay</span>
+            <h3>FX Hotel Tainan</h3>
+            <p class="details">
+              <strong>May 27 to May 29</strong><br>
+              Two nights in Tainan before the final stop.
+            </p>
+          </section>
+        </article>
+
+        <article class="stop hotel">
+          <section class="card">
+            <span class="label">Final Taipei Stay</span>
+            <h3>T.O Hotel Taipei Station</h3>
+            <p class="details">
+              <strong>May 29 to May 30</strong><br>
+              Final night back in Taipei.
+            </p>
+          </section>
+          <div class="marker" aria-hidden="true">&#8962;</div>
+          <div class="spacer"></div>
+        </article>
+
+        <article class="stop return">
+          <div class="spacer"></div>
+          <div class="marker" aria-hidden="true">&#9992;</div>
+          <section class="card">
+            <span class="label">Return Flight</span>
+            <h3>Taipei to Heathrow</h3>
+            <p class="details">
+              Departure <strong>May 30, 08:20</strong><br>
+              Arrival <strong>May 30, 16:30</strong>
+            </p>
+          </section>
+        </article>
+      </div>
+    </section>
+
+    <section class="map-panel" aria-label="Mini travel map">
+      <h2>Route at a Glance</h2>
+      <div class="map-toolbar">
+        <p class="map-status" id="map-status">The flight is currently shown: England to Taiwan.</p>
+        <button class="map-next" id="map-next" type="button">Next</button>
+      </div>
+      <div class="mini-map" id="mini-map">
+        <div id="leaflet-map" aria-hidden="true"></div>
+        <div class="plane-overlay" id="plane-overlay" aria-hidden="true">
+          <svg class="flight-line" id="flight-line" viewBox="0 0 1000 500" preserveAspectRatio="none">
+            <path
+              id="outbound-path"
+              d=""
+              fill="none"
+              stroke="rgba(221, 107, 77, 0.85)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="8 10"
+            />
+            <path
+              id="taiwan-path"
+              d=""
+              fill="none"
+              stroke="rgba(15, 139, 141, 0.9)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="7 9"
+            />
+            <path
+              id="train-path"
+              d=""
+              fill="none"
+              stroke="rgba(45, 108, 223, 0.9)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="8 10"
+            />
+            <path
+              id="train-path-2"
+              d=""
+              fill="none"
+              stroke="rgba(124, 86, 214, 0.9)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="8 10"
+            />
+            <path
+              id="train-path-3"
+              d=""
+              fill="none"
+              stroke="rgba(15, 139, 141, 0.92)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="8 10"
+            />
+            <path
+              id="return-path"
+              d=""
+              fill="none"
+              stroke="rgba(242, 193, 78, 0.96)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="8 10"
+            />
+          </svg>
+          <div class="plane outbound plane-shadow" id="plane-outbound">&#9992;</div>
+          <div class="plane outbound plane-shadow" id="plane-return">&#9992;</div>
+          <div class="car" id="car-outbound">&#128663;</div>
+          <div class="train" id="train-outbound">&#128646;</div>
+          <div class="train secondary" id="train-outbound-2">&#128646;</div>
+          <div class="train tertiary" id="train-outbound-3">&#128646;</div>
+          <div class="country-label" id="label-england">England</div>
+          <div class="country-label" id="label-taiwan">Taiwan</div>
+          <div class="country-label airport-label" id="label-airport">TPE Airport</div>
+          <div class="country-label hotel-label" id="label-hotel">Green World Hotel</div>
+          <div class="country-label hotel-label" id="label-hotel-taipei">Green World Hotel</div>
+          <div class="country-label hotel-label" id="label-hotel-taichung">Modern Inn</div>
+          <div class="country-label hotel-label" id="label-hotel-tainan">FX Hotel Tainan</div>
+          <div class="country-label hotel-label" id="label-hotel-taipei-final">T.O Hotel Taipei Station</div>
+          <div class="city london" id="city-london">
+            <div class="dot"></div>
+          </div>
+          <div class="city taipei" id="city-taipei">
+            <div class="dot"></div>
+          </div>
+          <div class="city airport" id="city-airport">
+            <div class="dot"></div>
+          </div>
+          <div class="city hotel" id="city-hotel">
+            <div class="dot"></div>
+          </div>
+          <div class="city hotel" id="city-hotel-taipei">
+            <div class="dot"></div>
+          </div>
+          <div class="city hotel" id="city-hotel-taichung">
+            <div class="dot"></div>
+          </div>
+          <div class="city hotel" id="city-hotel-tainan">
+            <div class="dot"></div>
+          </div>
+          <div class="city hotel" id="city-hotel-taipei-final">
+            <div class="dot"></div>
+          </div>
+        </div>
+      </div>
+      <div class="map-legend" aria-hidden="true">
+        <span class="legend-item"><span class="legend-swatch"></span>England to Taiwan</span>
+        <span class="legend-item"><span class="legend-swatch car"></span>Airport to hotel</span>
+        <span class="legend-item"><span class="legend-swatch train"></span>Taipei to Taichung</span>
+        <span class="legend-item"><span class="legend-swatch train-secondary"></span>Taichung to Tainan</span>
+        <span class="legend-item"><span class="legend-swatch train-tertiary"></span>Tainan to Taipei</span>
+      </div>
+      <p class="footer-note">
+        Designed like a digital postcard with gentle motion, a clear timeline, and hotel stops placed
+        throughout the journey.
+      </p>
+    </section>
+  </main>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const places = {
+      england: { lat: 51.5072, lng: -0.1276 },
+      taiwan: { lat: 25.0797, lng: 121.2342 },
+      airport: { lat: 25.079651, lng: 121.234217 },
+      hotel: { lat: 25.044976, lng: 121.509371 },
+      hotelTaichung: { lat: 24.1376, lng: 120.6865 },
+      hotelTainan: { lat: 22.995199, lng: 120.197098 },
+      hotelTaipeiFinal: { lat: 25.0462, lng: 121.5134 }
+    };
+
+    let map;
+    let animationStarted = false;
+    let scene = "flight";
+
+    function setOverlayPoint(id, point) {
+      const node = document.getElementById(id);
+      if (!node || !point) return;
+      node.style.left = `${point.x}px`;
+      node.style.top = `${point.y}px`;
+    }
+
+    function setVisibility(id, visible) {
+      const node = document.getElementById(id);
+      if (!node) return;
+      node.style.opacity = visible ? "1" : "0";
+    }
+
+    function buildArc(start, end, liftRatio = 0.18, minLift = 70, invert = false) {
+      const lift = Math.max(minLift, Math.abs(end.x - start.x) * liftRatio);
+      const control1X = start.x + (end.x - start.x) * 0.28;
+      const control2X = start.x + (end.x - start.x) * 0.72;
+      const baseline = invert ? Math.max(start.y, end.y) : Math.min(start.y, end.y);
+      const controlY = invert ? baseline + lift : baseline - lift;
+      return `M ${start.x} ${start.y} C ${control1X} ${controlY}, ${control2X} ${controlY}, ${end.x} ${end.y}`;
+    }
+
+    function applyFlightPath(pathId, d) {
+      const path = document.getElementById(pathId);
+      if (!path) return;
+      path.setAttribute("d", d);
+    }
+
+    function placePlane(plane, path, progress) {
+      if (!plane || !path) return;
+      const totalLength = path.getTotalLength();
+      if (!totalLength) return;
+      const current = path.getPointAtLength(totalLength * progress);
+      const next = path.getPointAtLength(Math.min(totalLength, totalLength * progress + 1));
+      const angle = Math.atan2(next.y - current.y, next.x - current.x) * (180 / Math.PI);
+      plane.style.left = `${current.x}px`;
+      plane.style.top = `${current.y}px`;
+      plane.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+    }
+
+    function animatePlanes() {
+      const outboundPlane = document.getElementById("plane-outbound");
+      const returnPlane = document.getElementById("plane-return");
+      const carNode = document.getElementById("car-outbound");
+      const trainNode = document.getElementById("train-outbound");
+      const trainNode2 = document.getElementById("train-outbound-2");
+      const trainNode3 = document.getElementById("train-outbound-3");
+      const outboundPathNode = document.getElementById("outbound-path");
+      const returnPathNode = document.getElementById("return-path");
+      const taiwanPathNode = document.getElementById("taiwan-path");
+      const trainPathNode = document.getElementById("train-path");
+      const trainPathNode2 = document.getElementById("train-path-2");
+      const trainPathNode3 = document.getElementById("train-path-3");
+      const cycleMs = 8000;
+      const returnCycleMs = 8000;
+      const carCycleMs = 5000;
+      const trainCycleMs = 6500;
+      const trainCycleMs2 = 6500;
+      const trainCycleMs3 = 6500;
+
+      function frame(now) {
+        const outboundProgress = (now % cycleMs) / cycleMs;
+        const returnProgress = (now % returnCycleMs) / returnCycleMs;
+        const carProgress = (now % carCycleMs) / carCycleMs;
+        const trainProgress = (now % trainCycleMs) / trainCycleMs;
+        const trainProgress2 = (now % trainCycleMs2) / trainCycleMs2;
+        const trainProgress3 = (now % trainCycleMs3) / trainCycleMs3;
+
+        if (outboundPlane && scene === "flight") {
+          outboundPlane.style.opacity = outboundProgress < 0.06 || outboundProgress > 0.98 ? "0" : "1";
+          placePlane(outboundPlane, outboundPathNode, outboundProgress);
+        } else if (outboundPlane) {
+          outboundPlane.style.opacity = "0";
+        }
+
+        if (returnPlane && scene === "return-flight") {
+          returnPlane.style.opacity = returnProgress < 0.06 || returnProgress > 0.98 ? "0" : "1";
+          placePlane(returnPlane, returnPathNode, returnProgress);
+        } else if (returnPlane) {
+          returnPlane.style.opacity = "0";
+        }
+
+        if (carNode && scene === "taiwan") {
+          carNode.style.opacity = carProgress < 0.04 || carProgress > 0.98 ? "0" : "1";
+          placePlane(carNode, taiwanPathNode, carProgress);
+        } else if (carNode) {
+          carNode.style.opacity = "0";
+        }
+
+        if (trainNode && scene === "train") {
+          trainNode.style.opacity = trainProgress < 0.03 || trainProgress > 0.99 ? "0" : "1";
+          placePlane(trainNode, trainPathNode, trainProgress);
+        } else if (trainNode) {
+          trainNode.style.opacity = "0";
+        }
+
+        if (trainNode2 && scene === "train-2") {
+          trainNode2.style.opacity = trainProgress2 < 0.03 || trainProgress2 > 0.99 ? "0" : "1";
+          placePlane(trainNode2, trainPathNode2, trainProgress2);
+        } else if (trainNode2) {
+          trainNode2.style.opacity = "0";
+        }
+
+        if (trainNode3 && scene === "train-3") {
+          trainNode3.style.opacity = trainProgress3 < 0.03 || trainProgress3 > 0.99 ? "0" : "1";
+          placePlane(trainNode3, trainPathNode3, trainProgress3);
+        } else if (trainNode3) {
+          trainNode3.style.opacity = "0";
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    function renderMapOverlay() {
+      if (!map) return;
+
+      const englandPoint = map.latLngToContainerPoint([places.england.lat, places.england.lng]);
+      const taiwanPoint = map.latLngToContainerPoint([places.taiwan.lat, places.taiwan.lng]);
+      const airportPoint = map.latLngToContainerPoint([places.airport.lat, places.airport.lng]);
+      const hotelPoint = map.latLngToContainerPoint([places.hotel.lat, places.hotel.lng]);
+      const hotelTaichungPoint = map.latLngToContainerPoint([places.hotelTaichung.lat, places.hotelTaichung.lng]);
+      const hotelTainanPoint = map.latLngToContainerPoint([places.hotelTainan.lat, places.hotelTainan.lng]);
+      const hotelTaipeiFinalPoint = map.latLngToContainerPoint([places.hotelTaipeiFinal.lat, places.hotelTaipeiFinal.lng]);
+
+      setOverlayPoint("city-london", englandPoint);
+      setOverlayPoint("city-taipei", taiwanPoint);
+      setOverlayPoint("city-airport", airportPoint);
+      setOverlayPoint("city-hotel", hotelPoint);
+      setOverlayPoint("city-hotel-taipei", hotelPoint);
+      setOverlayPoint("city-hotel-taichung", hotelTaichungPoint);
+      setOverlayPoint("city-hotel-tainan", hotelTainanPoint);
+      setOverlayPoint("city-hotel-taipei-final", hotelTaipeiFinalPoint);
+      setOverlayPoint("label-england", { x: englandPoint.x, y: englandPoint.y - 28 });
+      setOverlayPoint("label-taiwan", { x: taiwanPoint.x, y: taiwanPoint.y - 28 });
+      setOverlayPoint("label-airport", { x: airportPoint.x, y: airportPoint.y - 28 });
+      setOverlayPoint("label-hotel", { x: hotelPoint.x, y: hotelPoint.y - 28 });
+      setOverlayPoint("label-hotel-taipei", { x: hotelPoint.x, y: hotelPoint.y - 28 });
+      setOverlayPoint("label-hotel-taichung", { x: hotelTaichungPoint.x, y: hotelTaichungPoint.y - 28 });
+      setOverlayPoint("label-hotel-tainan", { x: hotelTainanPoint.x, y: hotelTainanPoint.y - 28 });
+      setOverlayPoint("label-hotel-taipei-final", { x: hotelTaipeiFinalPoint.x, y: hotelTaipeiFinalPoint.y - 28 });
+
+      const outboundArc = buildArc(englandPoint, taiwanPoint);
+      const taiwanArc = buildArc(airportPoint, hotelPoint, 0.2, 38, true);
+      const trainArc = buildArc(hotelPoint, hotelTaichungPoint, 0.14, 42, false);
+      const trainArc2 = buildArc(hotelTaichungPoint, hotelTainanPoint, 0.14, 38, false);
+      const trainArc3 = buildArc(hotelTainanPoint, hotelTaipeiFinalPoint, 0.14, 46, false);
+      const returnArc = buildArc(taiwanPoint, englandPoint, 0.18, 70, false);
+
+      applyFlightPath("outbound-path", outboundArc);
+      applyFlightPath("taiwan-path", taiwanArc);
+      applyFlightPath("train-path", trainArc);
+      applyFlightPath("train-path-2", trainArc2);
+      applyFlightPath("train-path-3", trainArc3);
+      applyFlightPath("return-path", returnArc);
+
+      const outboundPlane = document.getElementById("plane-outbound");
+      const outboundPathNode = document.getElementById("outbound-path");
+      if (outboundPlane && outboundPathNode) {
+        outboundPlane.style.opacity = "1";
+        placePlane(outboundPlane, outboundPathNode, 0.02);
+      }
+
+      const carNode = document.getElementById("car-outbound");
+      const taiwanPathNode = document.getElementById("taiwan-path");
+      if (carNode && taiwanPathNode) {
+        placePlane(carNode, taiwanPathNode, 0.04);
+      }
+
+      const trainNode = document.getElementById("train-outbound");
+      const trainPathNode = document.getElementById("train-path");
+      if (trainNode && trainPathNode) {
+        placePlane(trainNode, trainPathNode, 0.03);
+      }
+
+      const trainNode2 = document.getElementById("train-outbound-2");
+      const trainPathNode2 = document.getElementById("train-path-2");
+      if (trainNode2 && trainPathNode2) {
+        placePlane(trainNode2, trainPathNode2, 0.03);
+      }
+
+      const trainNode3 = document.getElementById("train-outbound-3");
+      const trainPathNode3 = document.getElementById("train-path-3");
+      if (trainNode3 && trainPathNode3) {
+        placePlane(trainNode3, trainPathNode3, 0.03);
+      }
+
+      const returnPlane = document.getElementById("plane-return");
+      const returnPathNode = document.getElementById("return-path");
+      if (returnPlane && returnPathNode) {
+        placePlane(returnPlane, returnPathNode, 0.03);
+      }
+
+      updateSceneVisibility();
+    }
+
+    function updateSceneVisibility() {
+      const isFlight = scene === "flight";
+      const isTaiwan = scene === "taiwan";
+      const isTrain = scene === "train";
+      const isTrain2 = scene === "train-2";
+      const isTrain3 = scene === "train-3";
+      const isReturnFlight = scene === "return-flight";
+
+      setVisibility("city-london", isFlight);
+      setVisibility("city-taipei", isFlight);
+      setVisibility("label-england", isFlight);
+      setVisibility("label-taiwan", isFlight);
+      setVisibility("outbound-path", isFlight);
+
+      setVisibility("city-airport", isTaiwan);
+      setVisibility("city-hotel", isTaiwan);
+      setVisibility("label-airport", isTaiwan);
+      setVisibility("label-hotel", isTaiwan);
+      setVisibility("taiwan-path", isTaiwan);
+
+      setVisibility("city-hotel-taipei", isTrain);
+      setVisibility("city-hotel-taichung", isTrain);
+      setVisibility("label-hotel-taipei", isTrain);
+      setVisibility("label-hotel-taichung", isTrain);
+      setVisibility("train-path", isTrain);
+
+      setVisibility("city-hotel-taichung", isTrain || isTrain2);
+      setVisibility("label-hotel-taichung", isTrain || isTrain2);
+      setVisibility("city-hotel-tainan", isTrain2);
+      setVisibility("label-hotel-tainan", isTrain2);
+      setVisibility("train-path-2", isTrain2);
+
+      setVisibility("city-hotel-tainan", isTrain2 || isTrain3);
+      setVisibility("label-hotel-tainan", isTrain2 || isTrain3);
+      setVisibility("city-hotel-taipei-final", isTrain3);
+      setVisibility("label-hotel-taipei-final", isTrain3);
+      setVisibility("train-path-3", isTrain3);
+
+      setVisibility("city-london", isFlight || isReturnFlight);
+      setVisibility("city-taipei", isFlight || isReturnFlight);
+      setVisibility("label-england", isFlight || isReturnFlight);
+      setVisibility("label-taiwan", isFlight || isReturnFlight);
+      setVisibility("return-path", isReturnFlight);
+    }
+
+    function switchToTaiwanScene() {
+      if (!map) return;
+      scene = "taiwan";
+      const status = document.getElementById("map-status");
+      const nextButton = document.getElementById("map-next");
+      if (status) {
+        status.textContent = "The map is now zooming into Taiwan and the car is heading from the airport to Green World Hotel.";
+      }
+      if (nextButton) {
+        nextButton.disabled = false;
+        nextButton.textContent = "Next";
+      }
+
+      map.flyTo([25.0465, 121.39], 11, { duration: 1.8 });
+      window.setTimeout(() => {
+        renderMapOverlay();
+      }, 1000);
+    }
+
+    function switchToTrainScene() {
+      if (!map) return;
+      scene = "train";
+      const status = document.getElementById("map-status");
+      const nextButton = document.getElementById("map-next");
+      if (status) {
+        status.textContent = "The train is now shown from Green World Hotel in Taipei to Modern Inn in Taichung.";
+      }
+      if (nextButton) {
+        nextButton.disabled = false;
+        nextButton.textContent = "Next";
+      }
+
+      const trainBounds = L.latLngBounds(
+        [24.02, 120.52],
+        [25.16, 121.62]
+      );
+      map.flyToBounds(trainBounds, { padding: [30, 30], duration: 1.9 });
+      window.setTimeout(() => {
+        renderMapOverlay();
+      }, 1100);
+    }
+
+    function switchToTainanTrainScene() {
+      if (!map) return;
+      scene = "train-2";
+      const status = document.getElementById("map-status");
+      const nextButton = document.getElementById("map-next");
+      if (status) {
+        status.textContent = "The train is now shown from Modern Inn in Taichung to FX Hotel Tainan.";
+      }
+      if (nextButton) {
+        nextButton.disabled = false;
+        nextButton.textContent = "Next";
+      }
+
+      const trainBounds2 = L.latLngBounds(
+        [22.90, 120.12],
+        [24.22, 120.74]
+      );
+      map.flyToBounds(trainBounds2, { padding: [30, 30], duration: 1.9 });
+      window.setTimeout(() => {
+        renderMapOverlay();
+      }, 1100);
+    }
+
+    function switchToTaipeiReturnTrainScene() {
+      if (!map) return;
+      scene = "train-3";
+      const status = document.getElementById("map-status");
+      const nextButton = document.getElementById("map-next");
+      if (status) {
+        status.textContent = "The train is now shown from FX Hotel Tainan to T.O Hotel Taipei Station.";
+      }
+      if (nextButton) {
+        nextButton.disabled = false;
+        nextButton.textContent = "Next";
+      }
+
+      const trainBounds3 = L.latLngBounds(
+        [22.90, 120.12],
+        [25.12, 121.62]
+      );
+      map.flyToBounds(trainBounds3, { padding: [30, 30], duration: 1.9 });
+      window.setTimeout(() => {
+        renderMapOverlay();
+      }, 1100);
+    }
+
+    function switchToReturnFlightScene() {
+      if (!map) return;
+      scene = "return-flight";
+      const status = document.getElementById("map-status");
+      const nextButton = document.getElementById("map-next");
+      if (status) {
+        status.textContent = "The final step shows the flight from Taiwan back to England.";
+      }
+      if (nextButton) {
+        nextButton.disabled = false;
+        nextButton.textContent = "Complete";
+      }
+
+      const bounds = L.latLngBounds(
+        [10, -15],
+        [62, 135]
+      );
+      map.flyToBounds(bounds, { padding: [16, 16], duration: 1.9 });
+      window.setTimeout(() => {
+        renderMapOverlay();
+      }, 1100);
+    }
+
+    function restartJourney() {
+      if (!map) return;
+      scene = "flight";
+      const status = document.getElementById("map-status");
+      const nextButton = document.getElementById("map-next");
+      if (status) {
+        status.textContent = "The flight is currently shown: England to Taiwan.";
+      }
+      if (nextButton) {
+        nextButton.disabled = false;
+        nextButton.textContent = "Next";
+      }
+
+      const bounds = L.latLngBounds(
+        [10, -15],
+        [62, 135]
+      );
+      map.flyToBounds(bounds, { padding: [16, 16], duration: 1.6 });
+      window.setTimeout(() => {
+        renderMapOverlay();
+      }, 1000);
+    }
+
+    function initMap() {
+      map = L.map("leaflet-map", {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        tap: false,
+        touchZoom: false
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18
+      }).addTo(map);
+
+      const bounds = L.latLngBounds(
+        [10, -15],
+        [62, 135]
+      );
+      map.fitBounds(bounds, { padding: [16, 16] });
+      map.whenReady(() => {
+        renderMapOverlay();
+        if (!animationStarted) {
+          animatePlanes();
+          animationStarted = true;
+        }
+      });
+      map.on("move zoom resize", renderMapOverlay);
+    }
+
+    if (window.L) {
+      initMap();
+    }
+
+    const nextButton = document.getElementById("map-next");
+    if (nextButton) {
+      nextButton.addEventListener("click", () => {
+        if (scene === "flight") {
+          switchToTaiwanScene();
+        } else if (scene === "taiwan") {
+          switchToTrainScene();
+        } else if (scene === "train") {
+          switchToTainanTrainScene();
+        } else if (scene === "train-2") {
+          switchToTaipeiReturnTrainScene();
+        } else if (scene === "train-3") {
+          switchToReturnFlightScene();
+        } else if (scene === "return-flight") {
+          restartJourney();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
